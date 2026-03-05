@@ -22,7 +22,6 @@ A video wallpaper plugin for the Deepin Desktop Environment (DDE), letting you s
 ## Requirements
 
 - Deepin / UOS desktop environment
-- `libmpv` installed
 - Place your video files in `~/Videos/video-wallpaper/`
 
 ---
@@ -31,10 +30,10 @@ A video wallpaper plugin for the Deepin Desktop Environment (DDE), letting you s
 
 Download the latest `.deb` from the [Releases](../../releases) page and install it:
 ```bash
-sudo dpkg -i dd-videowallpaper-plugin-v1.0.deb
+sudo dpkg -i dd-videowallpaper-plugin-v1.2.deb
 ```
 
-Then restart the desktop or log out and back in.
+Then log out and back in.
 
 ---
 
@@ -58,6 +57,21 @@ Video wallpaper ▶
 ---
 
 ## Building from Source
+
+### Install build dependencies
+```bash
+sudo apt install \
+    cmake \
+    libmpv-dev \
+    libdtk6core-dev \
+    libdtk6widget-dev \
+    libdfm6-base-dev \
+    libdfm6-framework-dev \
+    qt6-base-dev \
+    qt6-base-private-dev
+```
+
+### Build
 ```bash
 git clone https://github.com/K4RLT/dde-desktop-videowallpaper-plugin.git
 cd dde-desktop-videowallpaper-plugin
@@ -65,7 +79,7 @@ mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
 sudo cp src/libdd-videowallpaper-plugin.so /usr/lib/x86_64-linux-gnu/dde-file-manager/plugins/desktop-edge/
-sudo cp assets/configs/org.deepin.dde.file-manager.desktop.videowallpaper.json \
+sudo cp ../assets/configs/org.deepin.dde.file-manager.desktop.videowallpaper.json \
     /usr/share/dsg/configs/org.deepin.dde.file-manager/
 ```
 
