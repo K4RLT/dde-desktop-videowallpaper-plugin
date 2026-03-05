@@ -16,39 +16,46 @@ class MpvWidget;
 DDP_VIDEOWALLPAPER_BEGIN_NAMESPACE
 
 #ifdef USE_LIBMPV
-class VideoProxy : public QWidget
-{
-    Q_OBJECT
 
-public:
-    VideoProxy(QWidget *parent = nullptr);
-
-    void command(const QVariant &params);
-
-private:
-    void initUI();
-
-private:
-    MpvWidget *widget = nullptr;
-};
-#else
 class VideoProxy : public QWidget
 {
     Q_OBJECT
 
 public:
     explicit VideoProxy(QWidget *parent = nullptr);
-    ~VideoProxy();
+
+    void command(const QVariant &params);
+    void setMpvProperty(const QString &name, const QVariant &value);
+    void shutdownMpv();
+
+protected:
+    void resizeEvent(QResizeEvent *e) override;
+
+private:
+    void initUI();
+    MpvWidget *widget = nullptr;
+};
+
+#else
+
+class VideoProxy : public QWidget
+{
+    Q_OBJECT
+
+public:
+    explicit VideoProxy(QWidget *parent = nullptr);
+    ~VideoProxy() override;
 
     void updateImage(const QImage &img);
     void clear();
 
 protected:
-    void paintEvent(QPaintEvent *) override;
+    void paintEvent(QPaintEvent *e) override;
 
 private:
     QImage image;
 };
+
 #endif
 
 typedef QSharedPointer<VideoProxy> VideoProxyPointer;

@@ -15,11 +15,25 @@ DDP_VIDEOWALLPAPER_BEGIN_NAMESPACE
 class WallpaperConfigPrivate
 {
 public:
-    WallpaperConfigPrivate(WallpaperConfig *qq);
+    explicit WallpaperConfigPrivate(WallpaperConfig *qq);
+
+    // Read raw values from DConfig
     bool getEnable() const;
+    QString getVideoPath() const;
+    bool getPauseOnFullscreen() const;
+    int getPauseIdleSeconds() const;
+    QString getScaleMode() const;
+    bool getEnableAudio() const;
 
 private:
+    // Cached values
     bool enable = false;
+    QString videoPath;
+    bool pauseOnFullscreen = false;
+    int pauseIdleSeconds = 0;       // 0 = disabled
+    QString scaleMode = "fill";     // "fill" | "fit" | "crop"
+    bool enableAudio  = false;
+
     DTK_CORE_NAMESPACE::DConfig *settings = nullptr;
 
     friend class WallpaperConfig;

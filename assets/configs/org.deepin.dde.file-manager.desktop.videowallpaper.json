@@ -1,17 +1,60 @@
 {
-	"magic": "dsg.config.meta",
-	"version": "1.0",
-	"contents": {
-		"enable": {
-			"value": false,
-			"serial": 0,
-			"flags": [],
-			"name": "Enable Video Wallpaper",
-			"name[zh_CN]": "启用视频壁纸",
-			"description[zh_CN]": "用于开启/关闭视频壁纸",
-			"description": "It's used to control whether to enable the Video Wallpaper.",
-			"permissions": "readwrite",
-			"visibility": "public"
-		}
-	}
+    "magic": "dsg.config.meta",
+    "version": "1.0",
+    "contents": {
+        "enable": {
+            "value": false,
+            "serial": 0,
+            "flags": [],
+            "name": "Enable Video Wallpaper",
+            "description": "Enable or disable the video wallpaper.",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "videoPath": {
+            "value": "",
+            "serial": 0,
+            "flags": [],
+            "name": "Video Path",
+            "description": "Path to the selected video wallpaper file.",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "pauseOnFullscreen": {
+            "value": false,
+            "serial": 0,
+            "flags": [],
+            "name": "Pause on Fullscreen",
+            "description": "Pause when a window is fullscreen or maximized.",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "pauseIdleSeconds": {
+            "value": 0,
+            "serial": 0,
+            "flags": [],
+            "name": "Pause on Idle (seconds)",
+            "description": "Pause after this many seconds of inactivity. 0 = disabled.",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "scaleMode": {
+            "value": "fill",
+            "serial": 0,
+            "flags": [],
+            "name": "Scale Mode",
+            "description": "Video scaling mode: fill, fit, or crop.",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "enableAudio": {
+            "value": false,
+            "serial": 0,
+            "flags": [],
+            "name": "Enable Audio",
+            "description": "Enable audio playback for video wallpaper.",
+            "permissions": "readwrite",
+            "visibility": "public"
+        }
+    }
 }

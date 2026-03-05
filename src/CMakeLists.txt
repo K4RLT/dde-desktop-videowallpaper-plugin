@@ -54,23 +54,10 @@ if (OPT_USE_LIBMPV MATCHES OFF)
 endif()
 list(REMOVE_ITEM SRC_FILES ${RM_SRC})
 
-# 查找匹配 ddplugin-videowallpaper*.ts 的文件列表
-file(GLOB TS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/translations/ddplugin-videowallpaper*.ts")
-
-# 添加 lrelease 命令，传递 TS_FILES 列表
-foreach(TS_FILE ${TS_FILES})
-    execute_process(
-       COMMAND lrelease ${TS_FILE}
-       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-endforeach()
-
-qt_add_resources(QRC_RESOURCES ts.qrc)
 
 add_library(${BIN_NAME}
     SHARED
     ${SRC_FILES}
-    ${QRC_RESOURCES}
 )
 
 set_target_properties(${BIN_NAME} PROPERTIES

@@ -5,12 +5,9 @@
 #include "videoproxy.h"
 
 #ifdef USE_LIBMPV
-#include <DPlatformWindowHandle>
-
-#include <third_party/mpvwidget.h>
-
-#include <QEvent>
-#include <QLayout>
+#include "third_party/mpvwidget.h"
+#include <QResizeEvent>
+#include <QVBoxLayout>
 #else
 #include <QPainter>
 #endif
@@ -18,6 +15,7 @@
 using namespace ddplugin_videowallpaper;
 
 #ifdef USE_LIBMPV
+
 VideoProxy::VideoProxy(QWidget *parent)
     : QWidget(parent)
     , widget(new MpvWidget(this, Qt::FramelessWindowHint))
@@ -25,30 +23,54 @@ VideoProxy::VideoProxy(QWidget *parent)
     initUI();
 }
 
-void VideoProxy::command(const QVariant &params)
-{
-    widget->command(params);
-}
-
 void VideoProxy::initUI()
 {
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
     layout->addWidget(widget);
+    setLayout(layout);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 }
+
+void VideoProxy::resizeEvent(QResizeEvent *e)
+{
+    QWidget::resizeEvent(e);
+    if (widget)
+        widget->setGeometry(0, 0, e->size().width(), e->size().height());
+}
+
+void VideoProxy::command(const QVariant &params)
+{
+    if (widget)
+        widget->command(params);
+}
+
+void VideoProxy::setMpvProperty(const QString &name, const QVariant &value)
+{
+    if (widget)
+        widget->setProperty(name, value);
+}
+
+void VideoProxy::shutdownMpv()
+{
+    if (widget)
+        widget->shutdown();
+}
+
 #else
+
 VideoProxy::VideoProxy(QWidget *parent)
     : QWidget(parent)
 {
     auto pal = palette();
     pal.setColor(backgroundRole(), Qt::black);
     setPalette(pal);
-    setAutoFillBackground(false);
+    setAutoFillBackground(true);
 }
 
-VideoProxy::~VideoProxy()
-{
-}
+VideoProxy::~VideoProxy() = default;
 
 void VideoProxy::updateImage(const QImage &img)
 {
@@ -60,7 +82,7 @@ void VideoProxy::updateImage(const QImage &img)
 
 void VideoProxy::clear()
 {
-    image.fill(palette().window().color());
+    image = QImage();
     update();
 }
 
@@ -69,18 +91,14 @@ void VideoProxy::paintEvent(QPaintEvent *e)
     QPainter painter(this);
     painter.fillRect(rect(), palette().window());
 
-    if (image.isNull()) {
-        return;
+    if (!image.isNull()) {
+        QSize tar = image.size() / devicePixelRatioF();
+        int x = (rect().width() - tar.width()) / 2;
+        int y = (rect().height() - tar.height()) / 2;
+        painter.drawImage(x, y, image);
     }
-
-    QSize tar = image.size() / devicePixelRatioF();
-    int x = (rect().width() - tar.width()) / 2.0;
-    int y = (rect().height() - tar.height()) / 2.0;
-    // x = x < 0 ? 0 : x;
-    // y = y < 0 ? 0 : y;
-
-    painter.drawImage(x, y, image);
 
     QWidget::paintEvent(e);
 }
+
 #endif

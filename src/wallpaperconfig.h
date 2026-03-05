@@ -19,11 +19,32 @@ class WallpaperConfig : public QObject
 public:
     static WallpaperConfig *instance();
     void initialize();
+
     bool enable() const;
     void setEnable(bool);
 
+    QString videoPath() const;
+    void setVideoPath(const QString &path);
+
+    bool pauseOnFullscreen() const;
+    void setPauseOnFullscreen(bool);
+
+    int pauseIdleSeconds() const;   // 0 = disabled
+    void setPauseIdleSeconds(int);
+
+    QString scaleMode() const;      // "fill" | "fit" | "crop"
+    void setScaleMode(const QString &mode);
+
+    bool enableAudio() const;
+    void setEnableAudio(bool);
+
 signals:
     void changeEnableState(bool enable);
+    void changeVideoPath(const QString &path);
+    void changePauseOnFullscreen(bool);
+    void changePauseIdleSeconds(int);
+    void changeScaleMode(const QString &mode);
+    void changeEnableAudio(bool);
 
 private slots:
     void configChanged(const QString &key);

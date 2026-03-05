@@ -46,6 +46,7 @@ private:
     bool turnOn = false;
     bool onDesktop = false;
     bool isEmptyArea = false;
+    QMenu *videoSubMenu = nullptr;
     QMap<QString, QAction *> predicateAction; // id -- instance
     QMap<QString, QString> predicateName; // id -- text
 };

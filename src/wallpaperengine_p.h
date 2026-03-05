@@ -9,40 +9,68 @@
 #include "videoproxy.h"
 
 #include <QFileSystemWatcher>
+#include <QMap>
+#include <QPoint>
 #include <QRect>
+#include <QTimer>
 #include <QUrl>
-#ifndef USE_LIBMPV
-#include <QMediaPlayer>
-#include <QVideoSink>
-#endif
+
+#include <xcb/xcb.h>
+#include <xcb/xcb_ewmh.h>
 
 DDP_VIDEOWALLPAPER_BEGIN_NAMESPACE
 
 class WallpaperEngine;
+
 class WallpaperEnginePrivate
 {
 public:
     explicit WallpaperEnginePrivate(WallpaperEngine *qq);
-    inline QRect relativeGeometry(const QRect &geometry)
+
+    // Geometry helper
+    inline QRect relativeGeometry(const QRect &geometry) const
     {
         return QRect(QPoint(0, 0), geometry.size());
     }
-    static QList<QUrl> getVideos(const QString &path);
 
-private:
-    VideoProxyPointer createWidget(QWidget *root);
-    void setBackgroundVisible(bool v);
+    // Video source
+    static QList<QUrl> getVideos(const QString &path);
     QString sourcePath() const;
-    QMap<QString, VideoProxyPointer> widgets;
+
+    // Widget management
+    VideoProxyPointer createWidget(QWidget *root);
     void clearWidgets();
 
+    // Desktop coverage detection via XCB
+    bool isDesktopCovered() const;
+    void openXcb();
+    void closeXcb();
+
+    // Background layer
+    void setBackgroundVisible(bool v);
+
+    // Apply current scale mode to all widgets
+    void applyScaleMode(const QString &mode);
+
 private:
-    QFileSystemWatcher *watcher = nullptr;
-#ifndef USE_LIBMPV
-    QMediaPlayer *player = nullptr;
-    QVideoSink *surface = nullptr;
-#endif
+    QMap<QString, VideoProxyPointer> widgets;
+
+    // File watcher + check timer
+    QFileSystemWatcher *watcher       = nullptr;
+    QTimer             *windowCheckTimer = nullptr;
+
+    // Pause state
+    bool pausedByWindow = false;
+    bool pausedByIdle   = false;
+    int  idleSeconds    = 0;
+    QPoint lastCursorPos;
+
     QList<QUrl> videos;
+
+    // Persistent XCB connection (opened once, reused every timer tick)
+    xcb_connection_t      *xcbConn  = nullptr;
+    xcb_ewmh_connection_t  xcbEwmh  = {};
+    bool                   xcbReady = false;
 
     friend class WallpaperEngine;
     WallpaperEngine *q;

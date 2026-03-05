@@ -8,13 +8,11 @@
 #include "ddplugin_videowallpaper_global.h"
 
 #include <QObject>
-#ifndef USE_LIBMPV
-#include <QVideoFrame>
-#endif
 
 DDP_VIDEOWALLPAPER_BEGIN_NAMESPACE
 
 class WallpaperEnginePrivate;
+
 class WallpaperEngine : public QObject
 {
     Q_OBJECT
@@ -22,8 +20,9 @@ class WallpaperEngine : public QObject
 public:
     explicit WallpaperEngine(QObject *parent = nullptr);
     ~WallpaperEngine() override;
+
     bool init();
-    void turnOn(bool build = true);
+    void turnOn(bool buildNow = true);
     void turnOff();
 
 public slots:
@@ -33,15 +32,12 @@ public slots:
     void geometryChanged();
     void play();
     void show();
-
-    void releaseMemory();
+    void checkWindowStates();
 
 private slots:
     bool registerMenu();
     void checkResource();
-#ifndef USE_LIBMPV
-    void catchImage(const QVideoFrame &frame);
-#endif
+    void releaseMemory();
 
 private:
     friend class WallpaperEnginePrivate;
