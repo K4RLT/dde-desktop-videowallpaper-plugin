@@ -34,7 +34,10 @@ sudo dpkg -i dd-videowallpaper-plugin-v1.2.deb
 ```
 
 Then log out and back in.
-
+OR
+```bash
+pkill dde-shell
+```
 ---
 
 ## Usage
