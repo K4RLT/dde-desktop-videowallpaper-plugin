@@ -1,31 +1,30 @@
-dde-desktop-videowallpaper-plugin (1.5.3) UNRELEASED; urgency=medium
+dde-desktop-videowallpaper-plugin (1.3) stable; urgency=medium
+
+  * fix: HiDPI render correction using physical pixels for mpv FBO
+    (contributed by @DonkeyKongG3me on Telegram)
+  * fix: config cache not updating after external DConfig change
+  * fix: enable/disable handler guard was always blocking turnOn/turnOff
+  * fix: ffprobe no longer blocks the UI thread when selecting a video
+  * fix: play() and refreshSource() no longer race to double-load video
+  * fix: turnOn() leaked watcher and timer on double-call
+  * fix: getVideos() now filters by video extension only
+  * fix: use qobject_cast instead of dynamic_cast in event filter
+
+ -- K4RLT <karl@karl-pc>  Mon, 09 Mar 2026 08:57:41 +0000
+
+dde-desktop-videowallpaper-plugin (1.2) stable; urgency=medium
 
   * be compatible with deepin 25
-  * remove Qt5 support and related build files, focusing solely on Qt6
+  * remove Qt5 support, focusing solely on Qt6
   * fix org.deepin.dde-shell root widget has titlebar
-
- -- unknown <unknown@uniontech.com>  Fri, 14 Mar 2025 11:05:00 +0800
-
-dde-desktop-videowallpaper-plugin (1.5.2) UNRELEASED; urgency=medium
-
   * use libmpv instead of QtMultimedia
-
- -- unknown <unknown@uniontech.com>  Sun, 8 Dec 2024 21:08:40 +0800
-
-dde-desktop-videowallpaper-plugin (1.5.1-1) UNRELEASED; urgency=medium
-
   * fix dde-shell random crash issue
+  * be compatible with dde-file-manager 6.5.7
 
- -- unknown <unknown@uniontech.com>  Fri, 6 Dec 2024 13:06:30 +0800
+ -- K4RLT <karl@karl-pc>  Fri, 14 Mar 2025 11:05:00 +0800
 
-dde-desktop-videowallpaper-plugin (1.5.1) UNRELEASED; urgency=medium
+dde-desktop-videowallpaper-plugin (1.1) stable; urgency=medium
 
-  * Be compatible with dde-file-manager 6.5.7
+  * Initial release
 
- -- unknown <unknown@uniontech.com>  Thu, 5 Dec 2024 09:18:30 +0800
-
-dde-desktop-videowallpaper-plugin (1.1.15) UNRELEASED; urgency=medium
-
-  * Init release
-
- -- unknown <unknown@uniontech.com>  Tue, 16 Apr 2024 11:11:00 +0800
+ -- K4RLT <karl@karl-pc>  Tue, 16 Apr 2024 11:11:00 +0800
