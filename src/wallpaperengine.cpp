@@ -53,6 +53,10 @@ static QMap<QString, QWidget *> rootMap()
     return ret;
 }
 
+// Returns the URL to play, falling back to the first video if the configured
+// path isn't in the list. NOTE: if a fallback is needed, also updates the
+// stored config path so the selection stays consistent across restarts.
+// Callers should be aware this has a config side-effect on fallback.
 static QUrl resolveVideoUrl(const QList<QUrl> &videos)
 {
     const QString selected = WpCfg->videoPath();
@@ -62,6 +66,7 @@ static QUrl resolveVideoUrl(const QList<QUrl> &videos)
                 return v;
         }
     }
+    // Configured path not found — fall back and persist the new selection
     if (!videos.isEmpty()) {
         WpCfg->setVideoPath(videos.constFirst().toLocalFile());
         return videos.constFirst();
@@ -101,8 +106,10 @@ void WallpaperEnginePrivate::closeXcb()
 
 QList<QUrl> WallpaperEnginePrivate::getVideos(const QString &path)
 {
+    // Filter to the same extensions shown in the right-click menu
+    static const QStringList kVideoExts { "*.mp4", "*.mkv", "*.webm", "*.avi", "*.mov" };
     QList<QUrl> ret;
-    for (const QFileInfo &file : QDir(path).entryInfoList(QDir::Files))
+    for (const QFileInfo &file : QDir(path).entryInfoList(kVideoExts, QDir::Files))
         ret << QUrl::fromLocalFile(file.absoluteFilePath());
     return ret;
 }
@@ -246,9 +253,11 @@ bool WallpaperEngine::init()
         dpfSignalDispatcher->subscribe("dfmplugin_menu", "signal_MenuScene_SceneAdded",
                                        this, &WallpaperEngine::registerMenu);
 
-    // Enable/disable toggle
+    // Enable/disable toggle.
+    // Note: configChanged() already updated the cached WpCfg->enable() before emitting,
+    // so we must NOT guard with (WpCfg->enable() == e) here — that would always skip.
+    // We only call setEnable to persist the value when the signal comes from the menu scene.
     connect(WpCfg, &WallpaperConfig::changeEnableState, this, [this](bool e) {
-        if (WpCfg->enable() == e) return;
         WpCfg->setEnable(e);
         e ? turnOn() : turnOff();
     });
@@ -292,6 +301,17 @@ void WallpaperEngine::turnOn(bool buildNow)
 
     // Reopen XCB if it was closed by turnOff
     d->openXcb();
+
+    // Guard against double-call — old watcher/timer would leak if we don't clean first
+    if (d->watcher) {
+        delete d->watcher;
+        d->watcher = nullptr;
+    }
+    if (d->windowCheckTimer) {
+        d->windowCheckTimer->stop();
+        delete d->windowCheckTimer;
+        d->windowCheckTimer = nullptr;
+    }
 
     // Watch for new/removed video files
     d->watcher = new QFileSystemWatcher(this);
@@ -409,14 +429,13 @@ void WallpaperEngine::refreshSource()
     }
 
     const QUrl sourceUrl = resolveVideoUrl(d->videos);
-    releaseMemory();
+    // Note: do NOT call releaseMemory() here — trimming the heap immediately
+    // before loading a new video causes needless reallocations.
 
-    // Apply current scale mode and audio, then load video
+    // Apply current scale mode, then load video
     d->applyScaleMode(WpCfg->scaleMode());
-    const int volume = WpCfg->enableAudio() ? 100 : 0;
     for (const VideoProxyPointer &bwp : d->widgets.values()) {
         bwp->setMpvProperty("pause", false);
-        bwp->setMpvProperty("volume", volume);
         bwp->command(QVariantList { "loadfile", sourceUrl.toLocalFile() });
     }
 }
@@ -478,8 +497,17 @@ void WallpaperEngine::geometryChanged()
 
 void WallpaperEngine::play()
 {
-    if (!WpCfg->enable() || d->videos.isEmpty())
+    if (!WpCfg->enable())
         return;
+
+    // If videos haven't been scanned yet, refreshSource() will do the loadfile —
+    // avoid double-loading (play fires from WindowShowed, refreshSource from the watcher).
+    if (d->videos.isEmpty()) {
+        refreshSource();
+        d->setBackgroundVisible(false);
+        show();
+        return;
+    }
 
     const QUrl sourceUrl = resolveVideoUrl(d->videos);
     for (const VideoProxyPointer &bwp : d->widgets.values())

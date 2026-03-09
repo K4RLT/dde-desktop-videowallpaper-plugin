@@ -50,7 +50,7 @@ void VideoProxy::command(const QVariant &params)
 void VideoProxy::setMpvProperty(const QString &name, const QVariant &value)
 {
     if (widget)
-        widget->setProperty(name, value);
+        widget->setProperty(name, value);  // calls MpvWidget::setProperty → mpv::qt::set_property_variant
 }
 
 void VideoProxy::shutdownMpv()

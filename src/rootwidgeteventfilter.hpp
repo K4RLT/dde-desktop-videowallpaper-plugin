@@ -28,7 +28,8 @@ public:
          * @bug QOpenGLWidget in Qt6 will recreate window handle
          * @ref https://github.com/linuxdeepin/deepin-deepinid-client/commit/2a305926a9047c699cf4d12e3e64aae17e8c367b
          */
-        QWidget *widget = dynamic_cast<QWidget *>(watched);
+        // Use qobject_cast (preferred for QObject-derived types — no RTTI, faster)
+        QWidget *widget = qobject_cast<QWidget *>(watched);
         if (widget == nullptr) {
             return QObject::eventFilter(watched, event);
         }

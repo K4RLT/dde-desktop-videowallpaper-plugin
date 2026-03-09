@@ -89,6 +89,7 @@ sudo cp ../assets/configs/org.deepin.dde.file-manager.desktop.videowallpaper.jso
 
 - Original plugin by [zty199](https://github.com/zty199/dde-desktop-videowallpaper-plugin)
 - Forked and extended by [K4RLT](https://github.com/K4RLT)
+- HiDPI wallpaper sizing fix contributed by [@DonkeyKongG3me](https://t.me/DonkeyKongG3me) on Telegram
 
 ---
 

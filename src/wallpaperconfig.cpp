@@ -152,21 +152,39 @@ void WallpaperConfig::configChanged(const QString &key)
 {
     if (key == kKeyEnable) {
         bool e = d->getEnable();
-        if (e != d->enable) emit changeEnableState(e);
+        if (e != d->enable) {
+            d->enable = e;           // keep cache in sync
+            emit changeEnableState(e);
+        }
     } else if (key == kKeyVideoPath) {
         QString p = d->getVideoPath();
-        if (p != d->videoPath) emit changeVideoPath(p);
+        if (p != d->videoPath) {
+            d->videoPath = p;
+            emit changeVideoPath(p);
+        }
     } else if (key == kKeyPauseOnFullscreen) {
         bool v = d->getPauseOnFullscreen();
-        if (v != d->pauseOnFullscreen) emit changePauseOnFullscreen(v);
+        if (v != d->pauseOnFullscreen) {
+            d->pauseOnFullscreen = v;
+            emit changePauseOnFullscreen(v);
+        }
     } else if (key == kKeyPauseIdleSeconds) {
         int s = d->getPauseIdleSeconds();
-        if (s != d->pauseIdleSeconds) emit changePauseIdleSeconds(s);
+        if (s != d->pauseIdleSeconds) {
+            d->pauseIdleSeconds = s;
+            emit changePauseIdleSeconds(s);
+        }
     } else if (key == kKeyEnableAudio) {
         bool a = d->getEnableAudio();
-        if (a != d->enableAudio) emit changeEnableAudio(a);
+        if (a != d->enableAudio) {
+            d->enableAudio = a;
+            emit changeEnableAudio(a);
+        }
     } else if (key == kKeyScaleMode) {
         QString m = d->getScaleMode();
-        if (m != d->scaleMode) emit changeScaleMode(m);
+        if (m != d->scaleMode) {
+            d->scaleMode = m;
+            emit changeScaleMode(m);
+        }
     }
 }

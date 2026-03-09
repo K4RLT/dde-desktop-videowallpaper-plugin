@@ -22,9 +22,9 @@ MpvWidget::MpvWidget(QWidget *parent, Qt::WindowFlags f)
 
     mpv::qt::set_option_variant(mpv, "hwdec", "auto");
 
-#ifndef ENABLE_AUDIO_OUTPUT
+    // Audio is disabled for now — the runtime volume/setProperty approach did not
+    // work as intended and will be rewritten in a later release.
     mpv::qt::set_option_variant(mpv, "volume", 0);
-#endif
 
     mpv::qt::set_option_variant(mpv, "loop", "inf");
 
@@ -97,7 +97,14 @@ void MpvWidget::paintGL()
     if (!mpv_gl)
         return;
 
-    mpv_opengl_fbo mpfbo { static_cast<int>(defaultFramebufferObject()), width(), height(), 0 };
+    // Use physical pixels — mpv renders in physical pixels, but width()/height()
+    // return logical pixels. On HiDPI displays (e.g. 4K at 275% scaling) using
+    // logical pixels causes the video to render as a small block in the corner.
+    const qreal dpr = devicePixelRatioF();
+    mpv_opengl_fbo mpfbo { static_cast<int>(defaultFramebufferObject()),
+                           static_cast<int>(width()  * dpr),
+                           static_cast<int>(height() * dpr),
+                           0 };
     int flip_y = 1;
     mpv_render_param params[] = {
         { MPV_RENDER_PARAM_OPENGL_FBO, &mpfbo },

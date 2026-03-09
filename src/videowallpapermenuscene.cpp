@@ -168,43 +168,51 @@ bool VideoWallpaperMenuScene::create(QMenu *parent)
         a->setCheckable(true);
         a->setChecked(turnOn && file.absoluteFilePath() == currentPath);
         connect(a, &QAction::triggered, this, [=]() {
-            // Warn on high-resolution videos
-            QProcess ffprobe;
-            ffprobe.start("ffprobe", {
+            // Warn on high-resolution videos — use async QProcess so we never block
+            // the UI thread (waitForFinished would freeze the desktop for up to 3s).
+            auto *ffprobe = new QProcess();
+            ffprobe->start("ffprobe", {
                 "-v", "error",
                 "-select_streams", "v:0",
                 "-show_entries", "stream=width,height",
                 "-of", "csv=s=x:p=0",
                 file.absoluteFilePath()
             });
-            ffprobe.waitForFinished(3000);
-            const QStringList parts = QString(ffprobe.readAllStandardOutput().trimmed()).split('x');
-            if (parts.size() == 2) {
-                const int w = parts[0].toInt();
-                const int h = parts[1].toInt();
-                QString resLabel;
-                if      (w >= 7680 || h >= 4320) resLabel = "8K";
-                else if (w >= 3840 || h >= 2160) resLabel = "4K";
-                else if (w >= 2560 || h >= 1440) resLabel = "2K";
 
-                if (!resLabel.isEmpty()) {
-                    DTK_WIDGET_NAMESPACE::DDialog warn;
-                    warn.setWindowTitle(tr("High Resolution Warning"));
-                    warn.setMessage(tr("This video is %1 (%2x%3).\n\n"
-                                       "High resolution videos may cause high CPU/GPU usage "
-                                       "and affect system performance.\n\n"
-                                       "Do you want to continue?")
-                                    .arg(resLabel).arg(w).arg(h));
-                    warn.setIcon(QIcon::fromTheme("dialog-warning"));
-                    warn.addButton(tr("Cancel"),   false, DTK_WIDGET_NAMESPACE::DDialog::ButtonWarning);
-                    warn.addButton(tr("Continue"), true,  DTK_WIDGET_NAMESPACE::DDialog::ButtonRecommend);
-                    if (warn.exec() != 1)
-                        return;
+            const QString filePath = file.absoluteFilePath();
+            connect(ffprobe, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                    ffprobe, [=](int, QProcess::ExitStatus) {
+                ffprobe->deleteLater();
+
+                const QStringList parts =
+                    QString(ffprobe->readAllStandardOutput().trimmed()).split('x');
+                if (parts.size() == 2) {
+                    const int w = parts[0].toInt();
+                    const int h = parts[1].toInt();
+                    QString resLabel;
+                    if      (w >= 7680 || h >= 4320) resLabel = "8K";
+                    else if (w >= 3840 || h >= 2160) resLabel = "4K";
+                    else if (w >= 2560 || h >= 1440) resLabel = "2K";
+
+                    if (!resLabel.isEmpty()) {
+                        DTK_WIDGET_NAMESPACE::DDialog warn;
+                        warn.setWindowTitle(tr("High Resolution Warning"));
+                        warn.setMessage(tr("This video is %1 (%2x%3).\n\n"
+                                           "High resolution videos may cause high CPU/GPU usage "
+                                           "and affect system performance.\n\n"
+                                           "Do you want to continue?")
+                                        .arg(resLabel).arg(w).arg(h));
+                        warn.setIcon(QIcon::fromTheme("dialog-warning"));
+                        warn.addButton(tr("Cancel"),   false, DTK_WIDGET_NAMESPACE::DDialog::ButtonWarning);
+                        warn.addButton(tr("Continue"), true,  DTK_WIDGET_NAMESPACE::DDialog::ButtonRecommend);
+                        if (warn.exec() != 1)
+                            return;
+                    }
                 }
-            }
 
-            WpCfg->setVideoPath(file.absoluteFilePath());
-            emit WpCfg->changeEnableState(true);
+                WpCfg->setVideoPath(filePath);
+                emit WpCfg->changeEnableState(true);
+            });
         });
     }
 
