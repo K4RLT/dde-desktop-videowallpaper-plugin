@@ -19,6 +19,7 @@
 #include <QApplication>
 #include <QCursor>
 #include <QDir>
+#include <QFileInfo>
 #include <QScreen>
 #include <QStandardPaths>
 #include <QTimer>
@@ -53,10 +54,8 @@ static QMap<QString, QWidget *> rootMap()
     return ret;
 }
 
-// Returns the URL to play, falling back to the first video if the configured
-// path isn't in the list. NOTE: if a fallback is needed, also updates the
-// stored config path so the selection stays consistent across restarts.
-// Callers should be aware this has a config side-effect on fallback.
+// Returns the global URL to play, falling back to the first video if the
+// configured path is not in the list.  Has a config side-effect on fallback.
 static QUrl resolveVideoUrl(const QList<QUrl> &videos)
 {
     const QString selected = WpCfg->videoPath();
@@ -66,12 +65,22 @@ static QUrl resolveVideoUrl(const QList<QUrl> &videos)
                 return v;
         }
     }
-    // Configured path not found — fall back and persist the new selection
     if (!videos.isEmpty()) {
         WpCfg->setVideoPath(videos.constFirst().toLocalFile());
         return videos.constFirst();
     }
     return QUrl();
+}
+
+// Resolve the video file for a specific screen (per-screen override or global).
+static QString resolveVideoFileForScreen(const QString &screen, const QList<QUrl> &videos)
+{
+    const QString override = WpCfg->screenVideoOverride(screen);
+    if (!override.isEmpty() && QFileInfo::exists(override))
+        return override;
+    // Fall back to global selection
+    const QUrl url = resolveVideoUrl(videos);
+    return url.toLocalFile();
 }
 
 // ── Private implementation ────────────────────────────────────────────────────
@@ -106,7 +115,6 @@ void WallpaperEnginePrivate::closeXcb()
 
 QList<QUrl> WallpaperEnginePrivate::getVideos(const QString &path)
 {
-    // Filter to the same extensions shown in the right-click menu
     static const QStringList kVideoExts { "*.mp4", "*.mkv", "*.webm", "*.avi", "*.mov" };
     QList<QUrl> ret;
     for (const QFileInfo &file : QDir(path).entryInfoList(kVideoExts, QDir::Files))
@@ -158,9 +166,6 @@ void WallpaperEnginePrivate::setBackgroundVisible(bool v)
 
 void WallpaperEnginePrivate::applyScaleMode(const QString &mode)
 {
-    // fill  → keepaspect=no,  panscan=0  (stretch to widget, may distort)
-    // fit   → keepaspect=yes, panscan=0  (letterbox / pillarbox)
-    // crop  → keepaspect=yes, panscan=1  (fill screen, crop edges)
     const bool keepAspect = (mode != "fill");
     const double panscan  = (mode == "crop") ? 1.0 : 0.0;
 
@@ -170,7 +175,16 @@ void WallpaperEnginePrivate::applyScaleMode(const QString &mode)
     }
 }
 
-// Pause when any app window is fullscreen or fully maximized (both axes).
+void WallpaperEnginePrivate::applyMpvSettings()
+{
+    const double speed = WpCfg->playbackSpeed();
+    const int    vol   = WpCfg->volume();
+    for (const VideoProxyPointer &bwp : widgets.values()) {
+        bwp->setMpvProperty("speed",  speed);
+        bwp->setMpvProperty("volume", vol);
+    }
+}
+
 bool WallpaperEnginePrivate::isDesktopCovered() const
 {
     if (!xcbReady || xcb_connection_has_error(xcbConn))
@@ -188,7 +202,6 @@ bool WallpaperEnginePrivate::isDesktopCovered() const
     for (uint32_t i = 0; i < clients.windows_len && !covered; ++i) {
         xcb_window_t win = clients.windows[i];
 
-        // Skip desktop and dock windows
         xcb_ewmh_get_atoms_reply_t winTypes;
         bool isSystem = false;
         if (xcb_ewmh_get_wm_window_type_reply(ewmh,
@@ -204,7 +217,6 @@ bool WallpaperEnginePrivate::isDesktopCovered() const
         }
         if (isSystem) continue;
 
-        // Check for fullscreen or both-axis maximize
         xcb_ewmh_get_atoms_reply_t states;
         if (xcb_ewmh_get_wm_state_reply(ewmh,
                 xcb_ewmh_get_wm_state(ewmh, win), &states, nullptr)) {
@@ -253,31 +265,49 @@ bool WallpaperEngine::init()
         dpfSignalDispatcher->subscribe("dfmplugin_menu", "signal_MenuScene_SceneAdded",
                                        this, &WallpaperEngine::registerMenu);
 
-    // Enable/disable toggle.
-    // Note: configChanged() already updated the cached WpCfg->enable() before emitting,
-    // so we must NOT guard with (WpCfg->enable() == e) here — that would always skip.
-    // We only call setEnable to persist the value when the signal comes from the menu scene.
+    // ── Enable/disable toggle ─────────────────────────────────────────────────
     connect(WpCfg, &WallpaperConfig::changeEnableState, this, [this](bool e) {
         WpCfg->setEnable(e);
         e ? turnOn() : turnOff();
     });
 
-    // Video path change → reload
+    // ── Global video path change → reload all screens ─────────────────────────
     connect(WpCfg, &WallpaperConfig::changeVideoPath, this, [this](const QString &) {
         if (WpCfg->enable()) refreshSource();
     });
 
-    // Scale mode change → apply immediately without reloading
+    // ── Per-screen video path change → reload that specific screen ────────────
+    connect(WpCfg, &WallpaperConfig::changeScreenVideoPath,
+            this, [this](const QString &screen, const QString &path) {
+        if (!WpCfg->enable()) return;
+        VideoProxyPointer bwp = d->widgets.value(screen);
+        if (bwp.isNull()) return;
+
+        // path is empty when an override was cleared — fall back to global
+        const QString videoFile = path.isEmpty()
+                                  ? resolveVideoFileForScreen(screen, d->videos)
+                                  : path;
+        if (!videoFile.isEmpty())
+            bwp->command(QVariantList { "loadfile", videoFile });
+    });
+
+    // ── Scale mode change → apply immediately without reloading ───────────────
     connect(WpCfg, &WallpaperConfig::changeScaleMode, this, [this](const QString &mode) {
         if (WpCfg->enable()) d->applyScaleMode(mode);
     });
 
-    // Audio toggle → apply immediately
-    connect(WpCfg, &WallpaperConfig::changeEnableAudio, this, [this](bool enabled) {
+    // ── Volume change → apply immediately ────────────────────────────────────
+    connect(WpCfg, &WallpaperConfig::changeVolume, this, [this](int vol) {
         if (!WpCfg->enable()) return;
-        int volume = enabled ? 100 : 0;
         for (const VideoProxyPointer &bwp : d->widgets.values())
-            bwp->setMpvProperty("volume", volume);
+            bwp->setMpvProperty("volume", vol);
+    });
+
+    // ── Playback speed change → apply immediately ─────────────────────────────
+    connect(WpCfg, &WallpaperConfig::changePlaybackSpeed, this, [this](double speed) {
+        if (!WpCfg->enable()) return;
+        for (const VideoProxyPointer &bwp : d->widgets.values())
+            bwp->setMpvProperty("speed", speed);
     });
 
     if (WpCfg->enable())
@@ -288,38 +318,31 @@ bool WallpaperEngine::init()
 
 void WallpaperEngine::turnOn(bool buildNow)
 {
-    CanvasCoreUnsubscribe(signal_DesktopFrame_WindowAboutToBeBuilded, &WallpaperEngine::onDetachWindows);
+    CanvasCoreSubscribe(signal_DesktopFrame_WindowAboutToBeBuilded, &WallpaperEngine::onDetachWindows);
     CanvasCoreSubscribe(signal_DesktopFrame_WindowBuilded,  &WallpaperEngine::build);
     CanvasCoreSubscribe(signal_DesktopFrame_WindowShowed,   &WallpaperEngine::play);
     CanvasCoreSubscribe(signal_DesktopFrame_GeometryChanged, &WallpaperEngine::geometryChanged);
 
-    // Reset all pause/idle state
-    d->pausedByWindow = false;
-    d->pausedByIdle   = false;
-    d->idleSeconds    = 0;
-    d->lastCursorPos  = QCursor::pos();
+    d->pausedByWindow        = false;
+    d->pausedByIdle          = false;
+    d->idleSeconds           = 0;
+    d->resourceNotifyPending = false;
+    d->lastCursorPos         = QCursor::pos();
 
-    // Reopen XCB if it was closed by turnOff
     d->openXcb();
 
-    // Guard against double-call — old watcher/timer would leak if we don't clean first
-    if (d->watcher) {
-        delete d->watcher;
-        d->watcher = nullptr;
-    }
+    if (d->watcher) { delete d->watcher; d->watcher = nullptr; }
     if (d->windowCheckTimer) {
         d->windowCheckTimer->stop();
         delete d->windowCheckTimer;
         d->windowCheckTimer = nullptr;
     }
 
-    // Watch for new/removed video files
     d->watcher = new QFileSystemWatcher(this);
     d->watcher->addPath(d->sourcePath());
     connect(d->watcher, &QFileSystemWatcher::directoryChanged,
             this, &WallpaperEngine::refreshSource);
 
-    // 2-second timer for fullscreen and idle detection
     d->windowCheckTimer = new QTimer(this);
     d->windowCheckTimer->setInterval(2000);
     connect(d->windowCheckTimer, &QTimer::timeout,
@@ -353,9 +376,10 @@ void WallpaperEngine::turnOff()
     d->clearWidgets();
 
     d->videos.clear();
-    d->pausedByWindow = false;
-    d->pausedByIdle   = false;
-    d->idleSeconds    = 0;
+    d->pausedByWindow        = false;
+    d->pausedByIdle          = false;
+    d->idleSeconds           = 0;
+    d->resourceNotifyPending = false;
 
     d->setBackgroundVisible(true);
     releaseMemory();
@@ -402,10 +426,7 @@ void WallpaperEngine::checkWindowStates()
             }
         }
     } else {
-        if (d->pausedByIdle) {
-            d->pausedByIdle = false;
-            d->idleSeconds  = 0;
-        }
+        if (d->pausedByIdle) { d->pausedByIdle = false; d->idleSeconds = 0; }
     }
 
     // ── Apply pause / resume ──────────────────────────────────────────────────
@@ -428,15 +449,14 @@ void WallpaperEngine::refreshSource()
         return;
     }
 
-    const QUrl sourceUrl = resolveVideoUrl(d->videos);
-    // Note: do NOT call releaseMemory() here — trimming the heap immediately
-    // before loading a new video causes needless reallocations.
-
-    // Apply current scale mode, then load video
     d->applyScaleMode(WpCfg->scaleMode());
-    for (const VideoProxyPointer &bwp : d->widgets.values()) {
-        bwp->setMpvProperty("pause", false);
-        bwp->command(QVariantList { "loadfile", sourceUrl.toLocalFile() });
+    d->applyMpvSettings();
+
+    for (auto it = d->widgets.cbegin(); it != d->widgets.cend(); ++it) {
+        const QString videoFile = resolveVideoFileForScreen(it.key(), d->videos);
+        if (videoFile.isEmpty()) continue;
+        it.value()->setMpvProperty("pause", false);
+        it.value()->command(QVariantList { "loadfile", videoFile });
     }
 }
 
@@ -500,18 +520,22 @@ void WallpaperEngine::play()
     if (!WpCfg->enable())
         return;
 
-    // If videos haven't been scanned yet, refreshSource() will do the loadfile —
-    // avoid double-loading (play fires from WindowShowed, refreshSource from the watcher).
     if (d->videos.isEmpty()) {
         refreshSource();
+        if (d->videos.isEmpty())
+            return;
         d->setBackgroundVisible(false);
         show();
         return;
     }
 
-    const QUrl sourceUrl = resolveVideoUrl(d->videos);
-    for (const VideoProxyPointer &bwp : d->widgets.values())
-        bwp->command(QVariantList { "loadfile", sourceUrl.toLocalFile() });
+    d->applyMpvSettings();
+
+    for (auto it = d->widgets.cbegin(); it != d->widgets.cend(); ++it) {
+        const QString videoFile = resolveVideoFileForScreen(it.key(), d->videos);
+        if (!videoFile.isEmpty())
+            it.value()->command(QVariantList { "loadfile", videoFile });
+    }
 
     d->setBackgroundVisible(false);
     show();
@@ -544,11 +568,19 @@ bool WallpaperEngine::registerMenu()
 
 void WallpaperEngine::checkResource()
 {
-    if (d->videos.isEmpty()) {
-        Dtk::Core::DUtil::DNotifySender(tr("Please add the video file to %0").arg(d->sourcePath()))
-            .appName(tr("Video Wallpaper"))
-            .appIcon("deepin-toggle-desktop")
-            .timeOut(5000)
-            .call();
-    }
+    if (!d->videos.isEmpty() || d->resourceNotifyPending)
+        return;
+
+    // Debounce: coalesce rapid directory-change events into a single notification
+    d->resourceNotifyPending = true;
+    QTimer::singleShot(3000, this, [this] {
+        d->resourceNotifyPending = false;
+        if (!WpCfg->enable() || !d->videos.isEmpty())
+            return;
+        Dtk::Core::DUtil::DNotifySender(tr("Please add the video file to %1").arg(d->sourcePath()))
+                .appName(tr("Video Wallpaper"))
+                .appIcon("deepin-toggle-desktop")
+                .timeOut(5000)
+                .call();
+    });
 }

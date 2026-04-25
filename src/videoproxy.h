@@ -28,9 +28,6 @@ public:
     void setMpvProperty(const QString &name, const QVariant &value);
     void shutdownMpv();
 
-protected:
-    void resizeEvent(QResizeEvent *e) override;
-
 private:
     void initUI();
     MpvWidget *widget = nullptr;

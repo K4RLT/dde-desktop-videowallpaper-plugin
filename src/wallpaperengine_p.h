@@ -52,6 +52,9 @@ public:
     // Apply current scale mode to all widgets
     void applyScaleMode(const QString &mode);
 
+    // Apply current speed + volume to all widgets
+    void applyMpvSettings();
+
 private:
     QMap<QString, VideoProxyPointer> widgets;
 
@@ -60,10 +63,13 @@ private:
     QTimer             *windowCheckTimer = nullptr;
 
     // Pause state
-    bool pausedByWindow = false;
-    bool pausedByIdle   = false;
-    int  idleSeconds    = 0;
+    bool pausedByWindow       = false;
+    bool pausedByIdle         = false;
+    int  idleSeconds          = 0;
     QPoint lastCursorPos;
+
+    // Notification debounce
+    bool resourceNotifyPending = false;
 
     QList<QUrl> videos;
 

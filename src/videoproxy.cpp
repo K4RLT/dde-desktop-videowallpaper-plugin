@@ -6,7 +6,6 @@
 
 #ifdef USE_LIBMPV
 #include "third_party/mpvwidget.h"
-#include <QResizeEvent>
 #include <QVBoxLayout>
 #else
 #include <QPainter>
@@ -32,13 +31,6 @@ void VideoProxy::initUI()
     setLayout(layout);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-}
-
-void VideoProxy::resizeEvent(QResizeEvent *e)
-{
-    QWidget::resizeEvent(e);
-    if (widget)
-        widget->setGeometry(0, 0, e->size().width(), e->size().height());
 }
 
 void VideoProxy::command(const QVariant &params)

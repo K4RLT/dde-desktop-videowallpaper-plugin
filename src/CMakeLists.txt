@@ -20,6 +20,7 @@ find_package(dfm${DTK_VERSION_MAJOR}-framework REQUIRED)
 
 if (OPT_USE_LIBMPV MATCHES ON)
     add_compile_definitions(USE_LIBMPV)
+    find_package(PkgConfig REQUIRED)
     pkg_check_modules(Mpv REQUIRED IMPORTED_TARGET mpv)
     find_package(Qt${QT_VERSION_MAJOR} COMPONENTS OpenGLWidgets REQUIRED)
     set(Media_INCLUDE_DIRS

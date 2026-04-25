@@ -22,8 +22,9 @@ MpvWidget::MpvWidget(QWidget *parent, Qt::WindowFlags f)
 
     mpv::qt::set_option_variant(mpv, "hwdec", "auto");
 
-    // Audio is disabled for now — the runtime volume/setProperty approach did not
-    // work as intended and will be rewritten in a later release.
+    // Volume is controlled at runtime via setMpvProperty("volume", …) from WallpaperEngine.
+    // Default to 0 (muted) so there's no audio surprise on first load; the engine will
+    // apply the user-configured volume level once playback starts.
     mpv::qt::set_option_variant(mpv, "volume", 0);
 
     mpv::qt::set_option_variant(mpv, "loop", "inf");

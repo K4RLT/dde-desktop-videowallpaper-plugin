@@ -10,6 +10,8 @@
 
 #include <DConfig>
 
+#include <QMap>
+
 DDP_VIDEOWALLPAPER_BEGIN_NAMESPACE
 
 class WallpaperConfigPrivate
@@ -23,16 +25,25 @@ public:
     bool getPauseOnFullscreen() const;
     int getPauseIdleSeconds() const;
     QString getScaleMode() const;
-    bool getEnableAudio() const;
+    bool getEnableAudio() const;       // legacy migration only
+    int getVolume() const;
+    double getPlaybackSpeed() const;
+    QMap<QString, QString> getScreenVideoPaths() const;
+
+    // Serialise/deserialise the per-screen map to/from a JSON string
+    static QString serialiseScreenPaths(const QMap<QString, QString> &map);
+    static QMap<QString, QString> deserialiseScreenPaths(const QString &json);
 
 private:
     // Cached values
-    bool enable = false;
+    bool    enable             = false;
     QString videoPath;
-    bool pauseOnFullscreen = false;
-    int pauseIdleSeconds = 0;       // 0 = disabled
-    QString scaleMode = "fill";     // "fill" | "fit" | "crop"
-    bool enableAudio  = false;
+    bool    pauseOnFullscreen  = false;
+    int     pauseIdleSeconds   = 0;
+    QString scaleMode          = "fill";
+    int     volume             = 0;
+    double  playbackSpeed      = 1.0;
+    QMap<QString, QString> screenVideoPaths;
 
     DTK_CORE_NAMESPACE::DConfig *settings = nullptr;
 

@@ -20,30 +20,57 @@ public:
     static WallpaperConfig *instance();
     void initialize();
 
+    // ── Enable ──────────────────────────────────────────────────────────────
     bool enable() const;
     void setEnable(bool);
 
+    // ── Global video path ────────────────────────────────────────────────────
     QString videoPath() const;
     void setVideoPath(const QString &path);
 
+    // ── Per-screen video paths ───────────────────────────────────────────────
+    // Returns the per-screen override for @screen, falling back to videoPath().
+    QString videoPathForScreen(const QString &screen) const;
+    // Returns the per-screen override only; empty string if none is set.
+    QString screenVideoOverride(const QString &screen) const;
+    bool hasScreenOverride(const QString &screen) const;
+    // Assign a specific video to one screen (overrides global for that screen).
+    void setVideoPathForScreen(const QString &screen, const QString &path);
+    // Clear the per-screen override; the screen falls back to the global path.
+    void clearScreenOverride(const QString &screen);
+    // Set the global path AND clear all per-screen overrides (apply to all).
+    void setVideoPathForAll(const QString &path);
+
+    // ── Pause behaviour ──────────────────────────────────────────────────────
     bool pauseOnFullscreen() const;
     void setPauseOnFullscreen(bool);
 
     int pauseIdleSeconds() const;   // 0 = disabled
     void setPauseIdleSeconds(int);
 
+    // ── Scale mode ───────────────────────────────────────────────────────────
     QString scaleMode() const;      // "fill" | "fit" | "crop"
     void setScaleMode(const QString &mode);
 
-    bool enableAudio() const;
-    void setEnableAudio(bool);
+    // ── Audio / volume ───────────────────────────────────────────────────────
+    int volume() const;             // 0-100; 0 = muted
+    void setVolume(int vol);
+
+    // ── Playback speed ───────────────────────────────────────────────────────
+    double playbackSpeed() const;   // 0.5 | 0.75 | 1.0 | 1.25 | 1.5 | 2.0
+    void setPlaybackSpeed(double speed);
 
 signals:
     void changeEnableState(bool enable);
     void changeVideoPath(const QString &path);
+    void changeScreenVideoPath(const QString &screen, const QString &path);
     void changePauseOnFullscreen(bool);
     void changePauseIdleSeconds(int);
     void changeScaleMode(const QString &mode);
+    void changeVolume(int vol);
+    void changePlaybackSpeed(double speed);
+
+    // Kept for ABI compat (was emitted by the old enableAudio toggle)
     void changeEnableAudio(bool);
 
 private slots:
@@ -53,6 +80,8 @@ protected:
     explicit WallpaperConfig(QObject *parent = nullptr);
 
 private:
+    void persistScreenPaths();
+
     friend class WallpaperConfigPrivate;
     WallpaperConfigPrivate *d;
 };

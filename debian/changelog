@@ -1,7 +1,27 @@
+dde-desktop-videowallpaper-plugin (1.4) stable; urgency=medium
+
+  * fix: resizeEvent override removed from VideoProxy (fought layout)
+  * fix: predicateAction lookup uses key() instead of values().contains()
+  * fix: turnOn() was unsubscribing instead of subscribing WindowAboutToBeBuilded
+  * fix: ffprobe stdout read before deleteLater() (read-after-free)
+  * fix: play() early-returns if videos still empty after refreshSource()
+  * fix: checkResource() debounced to suppress notification spam
+  * fix: CMakeLists now calls find_package(PkgConfig) before pkg_check_modules
+  * fix: %0 -> %1 in notification string
+  * fix: volume migration now persisted to DConfig on first run
+  * fix: checkResource lambda guarded against stale this after turnOff()
+  * fix: disableAction no longer wipes pauseOnFullscreen/pauseIdleSeconds
+  * feat: volume control (0-100) replacing binary enableAudio toggle
+  * feat: playback speed control (0.25x-2x) persisted in DConfig
+  * feat: per-screen video assignment for multi-monitor setups
+  * feat: applyMpvSettings() applies volume+speed on every play/refresh
+  * feat: idle/scale/speed/volume menus use QActionGroup (exclusive)
+
+ -- K4RLT <karl@karl-pc>  Sat, 26 Apr 2026 00:00:00 +0800
+
 dde-desktop-videowallpaper-plugin (1.3) stable; urgency=medium
 
   * fix: HiDPI render correction using physical pixels for mpv FBO
-    (contributed by @DonkeyKongG3me on Telegram)
   * fix: config cache not updating after external DConfig change
   * fix: enable/disable handler guard was always blocking turnOn/turnOff
   * fix: ffprobe no longer blocks the UI thread when selecting a video
