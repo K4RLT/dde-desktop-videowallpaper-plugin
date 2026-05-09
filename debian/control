@@ -1,0 +1,12 @@
+Source: dde-desktop-videowallpaper-plugin
+Section: utils
+Priority: optional
+Maintainer: Karl <karl@karl-pc>
+Build-Depends: debhelper-compat (= 13)
+
+Package: dd-videowallpaper-plugin-karl
+Architecture: amd64
+Replaces: dde-desktop-videowallpaper-plugin
+Description: Live Wallpaper for Deepin
+ Play videos as your desktop wallpaper. Supports multi-video selection,
+ scale modes, audio toggle, pause on fullscreen, and pause on idle.

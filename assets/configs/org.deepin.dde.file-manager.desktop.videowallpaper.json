@@ -1,0 +1,87 @@
+{
+    "magic": "dsg.config.meta",
+    "version": "1.0",
+    "contents": {
+        "enable": {
+            "value": false,
+            "serial": 0,
+            "flags": [],
+            "name": "Enable Video Wallpaper",
+            "description": "Enable or disable the video wallpaper.",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "videoPath": {
+            "value": "",
+            "serial": 0,
+            "flags": [],
+            "name": "Video Path",
+            "description": "Path to the selected video wallpaper file (global / all screens).",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "pauseOnFullscreen": {
+            "value": false,
+            "serial": 0,
+            "flags": [],
+            "name": "Pause on Fullscreen",
+            "description": "Pause when a window is fullscreen or maximized.",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "pauseIdleSeconds": {
+            "value": 0,
+            "serial": 0,
+            "flags": [],
+            "name": "Pause on Idle (seconds)",
+            "description": "Pause after this many seconds of inactivity. 0 = disabled.",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "scaleMode": {
+            "value": "fill",
+            "serial": 0,
+            "flags": [],
+            "name": "Scale Mode",
+            "description": "Video scaling mode: fill, fit, or crop.",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "enableAudio": {
+            "value": false,
+            "serial": 0,
+            "flags": [],
+            "name": "Enable Audio (legacy)",
+            "description": "Deprecated. Kept for migration. Use volume instead.",
+            "permissions": "readwrite",
+            "visibility": "private"
+        },
+        "volume": {
+            "value": 0,
+            "serial": 0,
+            "flags": [],
+            "name": "Volume",
+            "description": "Audio volume level 0-100. 0 = muted.",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "playbackSpeed": {
+            "value": 1.0,
+            "serial": 0,
+            "flags": [],
+            "name": "Playback Speed",
+            "description": "Video playback speed multiplier. 0.5 = half speed, 2.0 = double.",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "screenVideoPaths": {
+            "value": "{}",
+            "serial": 0,
+            "flags": [],
+            "name": "Per-Screen Video Paths",
+            "description": "JSON map of screen name to video path for per-monitor assignment.",
+            "permissions": "readwrite",
+            "visibility": "public"
+        }
+    }
+}
