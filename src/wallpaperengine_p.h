@@ -65,6 +65,7 @@ private:
     // Pause state
     bool pausedByWindow       = false;
     bool pausedByIdle         = false;
+    bool pausedByLock         = false;
     int  idleSeconds          = 0;
     QPoint lastCursorPos;
 

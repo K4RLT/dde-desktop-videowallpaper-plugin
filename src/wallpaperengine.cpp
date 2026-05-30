@@ -23,6 +23,7 @@
 #include <QScreen>
 #include <QStandardPaths>
 #include <QTimer>
+#include <QDBusConnection>
 
 #include <malloc.h>
 
@@ -202,6 +203,7 @@ bool WallpaperEnginePrivate::isDesktopCovered() const
     for (uint32_t i = 0; i < clients.windows_len && !covered; ++i) {
         xcb_window_t win = clients.windows[i];
 
+        // Skip desktop/dock system windows
         xcb_ewmh_get_atoms_reply_t winTypes;
         bool isSystem = false;
         if (xcb_ewmh_get_wm_window_type_reply(ewmh,
@@ -217,19 +219,29 @@ bool WallpaperEnginePrivate::isDesktopCovered() const
         }
         if (isSystem) continue;
 
+        // Check window states
         xcb_ewmh_get_atoms_reply_t states;
+        bool isHidden = false, maxH = false, maxV = false, fs = false;
         if (xcb_ewmh_get_wm_state_reply(ewmh,
                 xcb_ewmh_get_wm_state(ewmh, win), &states, nullptr)) {
-            bool maxH = false, maxV = false, fs = false;
             for (uint32_t s = 0; s < states.atoms_len; ++s) {
-                if (states.atoms[s] == ewmh->_NET_WM_STATE_MAXIMIZED_VERT) maxV = true;
-                if (states.atoms[s] == ewmh->_NET_WM_STATE_MAXIMIZED_HORZ) maxH = true;
-                if (states.atoms[s] == ewmh->_NET_WM_STATE_FULLSCREEN)     fs   = true;
+                if (states.atoms[s] == ewmh->_NET_WM_STATE_HIDDEN)          isHidden = true;
+                if (states.atoms[s] == ewmh->_NET_WM_STATE_MAXIMIZED_VERT)  maxV     = true;
+                if (states.atoms[s] == ewmh->_NET_WM_STATE_MAXIMIZED_HORZ)  maxH     = true;
+                if (states.atoms[s] == ewmh->_NET_WM_STATE_FULLSCREEN)      fs       = true;
             }
             xcb_ewmh_get_atoms_reply_wipe(&states);
-            if ((maxH && maxV) || fs)
-                covered = true;
         }
+
+        // Skip minimized/hidden windows — they don't cover the desktop
+        if (isHidden) continue;
+
+        // Fullscreen or fully maximized → definitely covered
+        if (fs || (maxH && maxV)) {
+            covered = true;
+            continue;
+        }
+
     }
 
     xcb_ewmh_get_windows_reply_wipe(&clients);
@@ -325,9 +337,18 @@ void WallpaperEngine::turnOn(bool buildNow)
 
     d->pausedByWindow        = false;
     d->pausedByIdle          = false;
+    d->pausedByLock          = false;
     d->idleSeconds           = 0;
     d->resourceNotifyPending = false;
     d->lastCursorPos         = QCursor::pos();
+
+    // Listen for screen lock/unlock via Deepin SessionManager1
+    QDBusConnection::sessionBus().connect(
+        "org.deepin.dde.SessionManager1",
+        "/org/deepin/dde/SessionManager1",
+        "org.deepin.dde.SessionManager1",
+        "LockedChanged",
+        this, SLOT(onLockedChanged(bool)));
 
     d->openXcb();
 
@@ -372,12 +393,20 @@ void WallpaperEngine::turnOff()
     delete d->watcher;
     d->watcher = nullptr;
 
+    QDBusConnection::sessionBus().disconnect(
+        "org.deepin.dde.SessionManager1",
+        "/org/deepin/dde/SessionManager1",
+        "org.deepin.dde.SessionManager1",
+        "LockedChanged",
+        this, SLOT(onLockedChanged(bool)));
+
     d->closeXcb();
     d->clearWidgets();
 
     d->videos.clear();
     d->pausedByWindow        = false;
     d->pausedByIdle          = false;
+    d->pausedByLock          = false;
     d->idleSeconds           = 0;
     d->resourceNotifyPending = false;
 
@@ -456,7 +485,7 @@ void WallpaperEngine::refreshSource()
         const QString videoFile = resolveVideoFileForScreen(it.key(), d->videos);
         if (videoFile.isEmpty()) continue;
         it.value()->setMpvProperty("pause", false);
-        it.value()->command(QVariantList { "loadfile", videoFile });
+        loadFileWithRetry(it.value(), videoFile, 3);
     }
 }
 
@@ -534,7 +563,7 @@ void WallpaperEngine::play()
     for (auto it = d->widgets.cbegin(); it != d->widgets.cend(); ++it) {
         const QString videoFile = resolveVideoFileForScreen(it.key(), d->videos);
         if (!videoFile.isEmpty())
-            it.value()->command(QVariantList { "loadfile", videoFile });
+            loadFileWithRetry(it.value(), videoFile, 3);
     }
 
     d->setBackgroundVisible(false);
@@ -564,6 +593,34 @@ bool WallpaperEngine::registerMenu()
     dpfSignalDispatcher->unsubscribe("dfmplugin_menu", "signal_MenuScene_SceneAdded",
                                      this, &WallpaperEngine::registerMenu);
     return true;
+}
+
+void WallpaperEngine::loadFileWithRetry(const VideoProxyPointer &bwp, const QString &videoFile, int retries)
+{
+    bwp->command(QVariantList { "loadfile", videoFile });
+
+    QTimer::singleShot(800, this, [this, bwp, videoFile, retries]() {
+        if (bwp.isNull()) return;
+
+        QVariant idle = bwp->getMpvProperty("core-idle");
+        if (idle.toBool() && retries > 0) {
+            fmWarning() << "mpv not ready, retrying loadfile:" << videoFile << "retries left:" << retries - 1;
+            loadFileWithRetry(bwp, videoFile, retries - 1);
+        }
+    });
+}
+
+void WallpaperEngine::onLockedChanged(bool locked)
+{
+    if (d->pausedByLock == locked)
+        return;
+
+    d->pausedByLock = locked;
+    fmInfo() << (locked ? "wallpaper paused (screen locked)" : "wallpaper resumed (screen unlocked)");
+
+    const bool nowPaused = d->pausedByLock || d->pausedByWindow || d->pausedByIdle;
+    for (const VideoProxyPointer &bwp : d->widgets.values())
+        bwp->setMpvProperty("pause", nowPaused);
 }
 
 void WallpaperEngine::checkResource()

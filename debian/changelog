@@ -1,4 +1,4 @@
-dde-desktop-videowallpaper-plugin (1.4) stable; urgency=medium
+dde-desktop-videowallpaper-plugin (2.0) stable; urgency=medium
 
   * fix: resizeEvent override removed from VideoProxy (fought layout)
   * fix: predicateAction lookup uses key() instead of values().contains()

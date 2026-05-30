@@ -11,6 +11,7 @@
 
 #ifdef USE_LIBMPV
 class MpvWidget;
+class MpvNativeWidget;
 #endif
 
 DDP_VIDEOWALLPAPER_BEGIN_NAMESPACE
@@ -26,11 +27,13 @@ public:
 
     void command(const QVariant &params);
     void setMpvProperty(const QString &name, const QVariant &value);
+    QVariant getMpvProperty(const QString &name) const;
     void shutdownMpv();
 
 private:
     void initUI();
     MpvWidget *widget = nullptr;
+    MpvNativeWidget *nativeWidget = nullptr;
 };
 
 #else

@@ -6,6 +6,7 @@
 #define WALLPAPERENGINE_H
 
 #include "ddplugin_videowallpaper_global.h"
+#include "videoproxy.h"
 
 #include <QObject>
 
@@ -33,10 +34,12 @@ public slots:
     void play();
     void show();
     void checkWindowStates();
+    void onLockedChanged(bool locked);
 
 private slots:
     bool registerMenu();
     void checkResource();
+    void loadFileWithRetry(const VideoProxyPointer &bwp, const QString &videoFile, int retries);
     void releaseMemory();
 
 private:

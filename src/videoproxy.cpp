@@ -6,7 +6,11 @@
 
 #ifdef USE_LIBMPV
 #include "third_party/mpvwidget.h"
+#include "third_party/mpvnativewidget.h"
 #include <QVBoxLayout>
+#include <QOpenGLContext>
+#include <QOpenGLFunctions>
+#include <QOffscreenSurface>
 #else
 #include <QPainter>
 #endif
@@ -15,10 +19,36 @@ using namespace ddplugin_videowallpaper;
 
 #ifdef USE_LIBMPV
 
+static bool isNvidiaGpu()
+{
+    // Run once and cache — creating a temporary GL context per VideoProxy (once per screen) is wasteful
+    static int cached = -1;
+    if (cached != -1)
+        return cached == 1;
+
+    QOffscreenSurface surface;
+    surface.create();
+    QOpenGLContext ctx;
+    if (ctx.create() && ctx.makeCurrent(&surface)) {
+        const QString vendor = QString::fromUtf8(
+            reinterpret_cast<const char *>(ctx.functions()->glGetString(GL_VENDOR))).toLower();
+        ctx.doneCurrent();
+        cached = vendor.contains("nvidia") ? 1 : 0;
+    } else {
+        cached = 0;
+    }
+    return cached == 1;
+}
+
 VideoProxy::VideoProxy(QWidget *parent)
     : QWidget(parent)
-    , widget(new MpvWidget(this, Qt::FramelessWindowHint))
 {
+    if (isNvidiaGpu()) {
+        qInfo() << "[VideoWallpaper] NVIDIA GPU detected, using native Vulkan renderer";
+        nativeWidget = new MpvNativeWidget(this, Qt::FramelessWindowHint);
+    } else {
+        widget = new MpvWidget(this, Qt::FramelessWindowHint);
+    }
     initUI();
 }
 
@@ -27,27 +57,43 @@ void VideoProxy::initUI()
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
-    layout->addWidget(widget);
+    QWidget *w = nativeWidget ? static_cast<QWidget*>(nativeWidget) : static_cast<QWidget*>(widget);
+    layout->addWidget(w);
     setLayout(layout);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    w->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 }
 
 void VideoProxy::command(const QVariant &params)
 {
-    if (widget)
+    if (nativeWidget)
+        nativeWidget->command(params);
+    else if (widget)
         widget->command(params);
 }
 
 void VideoProxy::setMpvProperty(const QString &name, const QVariant &value)
 {
+    if (nativeWidget)
+        nativeWidget->setProperty(name, value);
+    else if (widget)
+        widget->setProperty(name, value);
+}
+
+QVariant VideoProxy::getMpvProperty(const QString &name) const
+{
+    if (nativeWidget)
+        return nativeWidget->getProperty(name);
     if (widget)
-        widget->setProperty(name, value);  // calls MpvWidget::setProperty → mpv::qt::set_property_variant
+        return widget->getProperty(name);
+    return QVariant();
 }
 
 void VideoProxy::shutdownMpv()
 {
-    if (widget)
+    if (nativeWidget)
+        nativeWidget->shutdown();
+    else if (widget)
         widget->shutdown();
 }
 
